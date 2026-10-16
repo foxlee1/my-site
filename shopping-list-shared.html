@@ -1,0 +1,442 @@
+<title>우리 집 장보기</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Gaegu:wght@400;700&family=Gowun+Dodum&display=swap" rel="stylesheet">
+<style>
+  /* 레이아웃: 크림색 노트 한 장, 왼쪽 여백선 + 가로 줄, 카테고리별 묶음. 종이 느낌을 위해 밝은 테마 하나로 고정. */
+  :root {
+    color-scheme: light;
+    --paper: #fbf5e6;
+    --paper-edge: #f1e6c8;
+    --line: #e6d7b0;
+    --margin: #e8a99a;
+    --ink: #5a3e2b;
+    --ink-soft: #8b6f58;
+    --ink-faint: #b09a83;
+    --accent: #c0643f;
+    --check: #6d8b4e;
+    --bg: #e9dcc0;
+    --field: #fffdf6;
+    --tape: rgba(232, 200, 140, .75);
+    --hand: "Gaegu", "Nanum Pen Script", "Comic Sans MS", cursive;
+    --body: "Gowun Dodum", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--body);
+    padding-block: 28px 48px;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+  }
+  .note {
+    max-width: 640px;
+    margin: 0 auto;
+    background-color: var(--paper);
+    background-image:
+      linear-gradient(to right, transparent 46px, var(--margin) 46px, var(--margin) 48px, transparent 48px),
+      repeating-linear-gradient(to bottom, transparent 0, transparent 35px, var(--line) 35px, var(--line) 36px);
+    border-radius: 6px;
+    box-shadow: 0 1px 0 var(--paper-edge), 0 10px 28px rgba(90, 62, 43, .18);
+    padding: 28px 24px 32px 64px;
+    position: relative;
+  }
+  .note::before {
+    content: "";
+    position: absolute;
+    top: -12px; left: 50%;
+    width: 110px; height: 26px;
+    transform: translateX(-50%) rotate(-2deg);
+    background: var(--tape);
+  }
+  header h1 {
+    font-family: var(--hand);
+    font-size: 40px;
+    margin: 0;
+    line-height: 1.1;
+    text-wrap: balance;
+  }
+  .status {
+    font-family: var(--hand);
+    font-size: 21px;
+    color: var(--ink-soft);
+    margin: 4px 0 6px;
+  }
+  .sync {
+    font-size: 12px;
+    color: var(--ink-faint);
+    margin: 0 0 18px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .sync::before {
+    content: "";
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--ink-faint);
+  }
+  .sync.live::before { background: var(--check); }
+  .sync.off::before { background: var(--accent); }
+
+  form.add {
+    display: grid;
+    grid-template-columns: 1fr 72px;
+    gap: 8px;
+    margin-bottom: 26px;
+    padding: 14px;
+    background: rgba(255, 252, 242, .85);
+    border: 1.5px dashed var(--ink-faint);
+    border-radius: 10px;
+  }
+  form.add[hidden] { display: none !important; }
+  form.add input, form.add select {
+    font: inherit;
+    font-size: 16px;
+    color: var(--ink);
+    background: var(--field);
+    border: 1.5px solid var(--line);
+    border-radius: 8px;
+    padding: 9px 10px;
+    min-width: 0;
+  }
+  form.add input:focus, form.add select:focus { outline: none; border-color: var(--accent); }
+  form.add .memo { grid-column: 1 / -1; }
+  form.add .row { grid-column: 1 / -1; display: flex; gap: 8px; }
+  form.add .row select { flex: 1; min-width: 0; }
+  button {
+    font-family: var(--hand);
+    font-size: 21px;
+    font-weight: 700;
+    cursor: pointer;
+    border-radius: 8px;
+  }
+  button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  button:disabled { opacity: .5; cursor: default; }
+  .btn-add { background: var(--accent); color: var(--paper); border: none; padding: 4px 22px; }
+  .btn-add:hover:not(:disabled) { filter: brightness(1.07); }
+  .error { grid-column: 1 / -1; margin: 0; font-size: 13px; color: var(--accent); }
+
+  section.cat { margin-bottom: 22px; }
+  section.cat h2 {
+    font-family: var(--hand);
+    font-size: 27px;
+    margin: 0 0 2px;
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  section.cat h2 small { font-size: 18px; color: var(--ink-faint); font-weight: 400; }
+  ul { list-style: none; margin: 0; padding: 0; }
+  li.item { display: flex; align-items: center; gap: 10px; min-height: 36px; padding: 2px 0; }
+  li.item label { flex: 1; display: flex; align-items: center; gap: 10px; cursor: pointer; min-width: 0; }
+  li.item input[type=checkbox] {
+    appearance: none;
+    -webkit-appearance: none;
+    flex: none;
+    width: 22px; height: 22px;
+    margin: 0;
+    border: 2px solid var(--ink-soft);
+    border-radius: 4px 6px 5px 3px;
+    transform: rotate(-2deg);
+    background: var(--field);
+    cursor: pointer;
+    position: relative;
+  }
+  li.item input[type=checkbox]:checked::after {
+    content: "✔";
+    position: absolute;
+    left: 1px; top: -9px;
+    font-size: 24px;
+    color: var(--check);
+    font-family: var(--hand);
+  }
+  li.item input[type=checkbox]:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  li.item input[type=checkbox]:disabled { cursor: default; }
+  .text { min-width: 0; }
+  .name { font-family: var(--hand); font-size: 23px; line-height: 1.1; overflow-wrap: anywhere; }
+  .qty { font-family: var(--hand); font-size: 19px; color: var(--accent); margin-left: 4px; }
+  .memo-text { display: block; font-size: 13px; color: var(--ink-soft); overflow-wrap: anywhere; }
+  li.done .name, li.done .qty, li.done .memo-text {
+    text-decoration: line-through;
+    text-decoration-color: var(--ink-soft);
+    color: var(--ink-faint);
+  }
+  .del {
+    flex: none;
+    background: none;
+    border: none;
+    color: var(--ink-faint);
+    font-size: 24px;
+    line-height: 1;
+    padding: 2px 6px;
+  }
+  .del:hover { color: var(--accent); }
+  .del[hidden] { display: none !important; }
+
+  .empty { font-family: var(--hand); font-size: 22px; color: var(--ink-faint); text-align: center; padding: 20px 0; margin: 0; }
+
+  footer { margin-top: 28px; display: grid; justify-items: center; gap: 10px; text-align: center; }
+  footer[hidden] { display: none !important; }
+  .btn-reset { background: transparent; color: var(--ink); border: 2px solid var(--ink-soft); padding: 4px 22px; }
+  .btn-reset:hover:not(:disabled) { background: rgba(192, 100, 63, .08); }
+  .confirm { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 8px; font-size: 14px; }
+  .confirm[hidden] { display: none !important; }
+  .confirm button { font-size: 19px; padding: 2px 16px; }
+  .btn-yes { background: var(--accent); color: var(--paper); border: none; }
+  .btn-no { background: transparent; color: var(--ink); border: 2px solid var(--line); }
+  .hint { font-size: 12px; color: var(--ink-faint); margin: 0; }
+
+  @media (max-width: 480px) {
+    .note {
+      padding: 22px 14px 26px 40px;
+      background-image:
+        linear-gradient(to right, transparent 26px, var(--margin) 26px, var(--margin) 28px, transparent 28px),
+        repeating-linear-gradient(to bottom, transparent 0, transparent 35px, var(--line) 35px, var(--line) 36px);
+    }
+    header h1 { font-size: 34px; }
+  }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<main class="note">
+  <header>
+    <h1>우리 집 장보기 🧺</h1>
+    <p class="status" id="status">목록을 불러오는 중…</p>
+    <p class="sync" id="sync">연결하는 중…</p>
+  </header>
+
+  <form class="add" id="addForm" autocomplete="off">
+    <input id="name" placeholder="뭘 사야 하지? (예: 우유)" aria-label="물건 이름" required maxlength="40">
+    <input id="qty" type="number" min="1" max="99" value="1" aria-label="수량" inputmode="numeric">
+    <input id="memo" class="memo" placeholder="메모 (선택, 예: 저지방으로)" aria-label="메모" maxlength="60">
+    <div class="row">
+      <select id="cat" aria-label="카테고리"></select>
+      <button class="btn-add" id="addBtn" type="submit">추가</button>
+    </div>
+    <p class="error" id="formError" hidden></p>
+  </form>
+
+  <div id="list">
+    <p class="empty">목록을 불러오는 중…</p>
+  </div>
+
+  <footer id="footer">
+    <button class="btn-reset" id="resetBtn" type="button">🔄 다음 장보기</button>
+    <div class="confirm" id="confirm" hidden>
+      <span>체크를 모두 풀까요? 항목은 그대로 남아요.</span>
+      <button class="btn-yes" id="yesBtn" type="button">풀기</button>
+      <button class="btn-no" id="noBtn" type="button">취소</button>
+    </div>
+    <p class="hint" id="hint">이 링크로 여는 가족 모두가 같은 목록을 봐요. 누가 체크하면 바로 다 같이 바뀌어요.</p>
+  </footer>
+</main>
+
+<script>
+  const CATEGORIES = [
+    { id: "veg",   label: "🥬 채소·과일" },
+    { id: "meat",  label: "🥩 육류·생선" },
+    { id: "dairy", label: "🥛 유제품·달걀" },
+    { id: "grain", label: "🍚 곡물·가공식품" },
+    { id: "home",  label: "🧻 생활용품" },
+    { id: "etc",   label: "📦 기타" },
+  ];
+  const CAT_IDS = new Set(CATEGORIES.map(c => c.id));
+
+  const $ = (id) => document.getElementById(id);
+  let items = [];        // {id, name, qty, memo, cat, done, createdAt}
+  let loaded = false;
+  let canWrite = true;
+  let col = null;        // db collection "items"
+
+  function el(tag, props = {}, ...children) {
+    const node = document.createElement(tag);
+    Object.assign(node, props);
+    for (const c of children) if (c != null) node.append(c);
+    return node;
+  }
+
+  function setSync(text, state) {
+    const s = $("sync");
+    s.textContent = text;
+    s.className = "sync" + (state ? " " + state : "");
+  }
+
+  function showError(msg) {
+    const e = $("formError");
+    e.textContent = msg;
+    e.hidden = !msg;
+  }
+
+  function errorText(err) {
+    if (err && err.code === "quota_exceeded") return "저장 공간이 꽉 찼어요. 안 쓰는 항목을 지운 뒤 다시 해 보세요.";
+    if (err && (err.code === "invalid_argument")) return "이 목록을 바꿀 권한이 없어요. 보기만 할 수 있어요.";
+    return "저장하지 못했어요. 잠시 뒤 다시 해 보세요.";
+  }
+
+  function render() {
+    const list = $("list");
+    list.replaceChildren();
+
+    const total = items.length;
+    const left = items.filter(i => !i.done).length;
+    $("status").textContent =
+      !loaded ? "목록을 불러오는 중…" :
+      total === 0 ? "아직 적은 게 없어요" :
+      left === 0 ? `${total}개 다 샀어요! 수고했어요 🎉` :
+      `${total}개 중 ${left}개 남음`;
+
+    if (!loaded) {
+      list.append(el("p", { className: "empty", textContent: "목록을 불러오는 중…" }));
+      return;
+    }
+    if (total === 0) {
+      list.append(el("p", { className: "empty", textContent: canWrite ? "위에서 살 물건을 적어 보세요 ✏️" : "아직 적힌 물건이 없어요" }));
+      return;
+    }
+
+    for (const cat of CATEGORIES) {
+      const inCat = items.filter(i => (CAT_IDS.has(i.cat) ? i.cat : "etc") === cat.id);
+      if (inCat.length === 0) continue;
+      // 안 산 것 먼저, 산 것은 아래로. 각각은 추가한 순서대로.
+      inCat.sort((a, b) => (a.done - b.done) || ((a.createdAt || 0) - (b.createdAt || 0)));
+      const catLeft = inCat.filter(i => !i.done).length;
+
+      const ul = el("ul");
+      for (const item of inCat) {
+        const cb = el("input", { type: "checkbox", checked: !!item.done, disabled: !canWrite });
+        cb.addEventListener("change", () => toggle(item, cb.checked));
+        const text = el("span", { className: "text" },
+          el("span", { className: "name", textContent: item.name }),
+          el("span", { className: "qty", textContent: `× ${item.qty}` }),
+          item.memo ? el("span", { className: "memo-text", textContent: item.memo }) : null
+        );
+        const del = el("button", { className: "del", type: "button", textContent: "×", title: "삭제", hidden: !canWrite });
+        del.setAttribute("aria-label", `${item.name} 삭제`);
+        del.addEventListener("click", () => remove(item));
+        ul.append(el("li", { className: "item" + (item.done ? " done" : "") },
+          el("label", {}, cb, text), del));
+      }
+
+      list.append(el("section", { className: "cat" },
+        el("h2", {}, cat.label, el("small", { textContent: catLeft ? `${catLeft}개 남음` : "다 샀어요" })),
+        ul));
+    }
+  }
+
+  function applyWriteAccess() {
+    $("addForm").hidden = !canWrite;
+    $("resetBtn").hidden = !canWrite;
+    if (!canWrite) $("hint").textContent = "보기 전용이에요. 목록을 바꾸려면 링크를 준 사람에게 편집 권한을 받아 주세요.";
+    render();
+  }
+
+  async function toggle(item, done) {
+    if (!col) return;
+    try { await col.doc(item.id).update({ done }); showError(""); }
+    catch (err) { showError(errorText(err)); render(); }
+  }
+
+  async function remove(item) {
+    if (!col) return;
+    try { await col.doc(item.id).delete(); showError(""); }
+    catch (err) { showError(errorText(err)); }
+  }
+
+  // 카테고리 선택지
+  for (const c of CATEGORIES) $("cat").append(el("option", { value: c.id, textContent: c.label }));
+
+  $("addForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    if (!col) return;
+    const name = $("name").value.trim();
+    if (!name) return;
+    const qty = Math.min(99, Math.max(1, parseInt($("qty").value, 10) || 1));
+    const data = { name, qty, memo: $("memo").value.trim(), cat: $("cat").value, done: false, createdAt: Date.now() };
+    $("addBtn").disabled = true;
+    try {
+      await col.add(data);
+      $("name").value = ""; $("memo").value = ""; $("qty").value = 1;
+      showError("");
+      $("name").focus();
+    } catch (err) {
+      showError(errorText(err));
+    } finally {
+      $("addBtn").disabled = false;
+    }
+  });
+
+  $("resetBtn").addEventListener("click", () => {
+    if (!items.some(i => i.done)) { $("hint").textContent = "체크된 항목이 없어요."; return; }
+    $("resetBtn").hidden = true;
+    $("confirm").hidden = false;
+    $("yesBtn").focus();
+  });
+  $("noBtn").addEventListener("click", () => {
+    $("confirm").hidden = true;
+    $("resetBtn").hidden = false;
+  });
+  $("yesBtn").addEventListener("click", async () => {
+    $("yesBtn").disabled = true;
+    const done = items.filter(i => i.done);
+    try {
+      for (const i of done) await col.doc(i.id).update({ done: false });
+      showError("");
+    } catch (err) {
+      showError(errorText(err));
+    } finally {
+      $("yesBtn").disabled = false;
+      $("confirm").hidden = true;
+      $("resetBtn").hidden = false;
+    }
+  });
+
+  render();
+
+  (async () => {
+    const db = window.claude ? await window.claude.use("db") : null;
+    if (!db) {
+      loaded = true;
+      canWrite = false;
+      setSync("공용 목록에 연결할 수 없어요. claude.ai에 로그인한 상태로 이 링크를 열어 주세요.", "off");
+      applyWriteAccess();
+      $("hint").textContent = "";
+      return;
+    }
+    col = db.collection("items");
+
+    const user = await window.claude.use("user");
+    if (user) {
+      try {
+        const may = await user.can("data.write");
+        if (may === false) canWrite = false;
+      } catch (_) { /* 알 수 없으면 쓰기 가능으로 두고, 실제 저장 결과로 판단 */ }
+    }
+    applyWriteAccess();
+
+    col.onSnapshot((snap) => {
+      items = snap.docs.filter(d => d.exists).map(d => {
+        const v = d.data() || {};
+        return {
+          id: d.id,
+          name: String(v.name || "").slice(0, 40),
+          qty: Number(v.qty) || 1,
+          memo: String(v.memo || "").slice(0, 60),
+          cat: String(v.cat || "etc"),
+          done: !!v.done,
+          createdAt: Number(v.createdAt) || 0,
+        };
+      });
+      loaded = true;
+      setSync(snap.metadata.fromCache ? "연결하는 중…" : "가족과 실시간으로 함께 보는 중", snap.metadata.fromCache ? "" : "live");
+      render();
+    }, (err) => {
+      loaded = true;
+      setSync(err && err.code === "revoked" ? "이 목록을 볼 수 있는 권한이 바뀌었어요." : "연결이 끊겼어요. 새로고침해 주세요.", "off");
+      render();
+    });
+  })();
+</script>
